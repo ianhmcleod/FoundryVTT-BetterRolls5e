@@ -54,12 +54,15 @@ Hooks.on('renderChatMessage', (message, html, data) => {
 			// sometimes the image within the button triggers the event, so we have to make sure to get the proper modifier value
 			if (modifier === undefined) {
 				modifier = $(ev.target).parent().attr('data-modifier');
-			}
+            }
+            
+            let dmgType = dmgElement.find(".dice-total").attr("data-damagetype");
 
 			// applying dmg to the targeted token and sending only the span that the button sits in 
 			let targetActors = getTargetActors();
 			for (let i=0; i<targetActors.length; i++) {
-				targetActors[i].applyDamage(dmg, modifier);
+                let traitMult = getTraitMult(targetActors[i], dmgType);
+				targetActors[i].applyDamage(dmg, modifier * traitMult);
 			}
 			setTimeout(() => { 
 				if (canvas.hud.token._displayState && canvas.hud.token._displayState !== 0) {
@@ -78,6 +81,18 @@ Hooks.on('renderChatMessage', (message, html, data) => {
         html.find('.dmgBtn-container-br').hide();
     });
 });
+
+let getTraitMult = (actor, dmgTypeString) => {
+  if (dmgTypeString.includes("healing") || dmgTypeString.includes("temphp")) return 1;
+    if (dmgTypeString !== "") {
+      if (actor.data.data.traits.di.value.some(t => dmgTypeString.includes(t))) return 0;
+      if (actor.data.data.traits.dr.value.some(t => dmgTypeString.includes(t))) return 0.5;
+      if (actor.data.data.traits.dv.value.some(t => dmgTypeString.includes(t))) return 2;
+    }
+  // Check the custom immunities
+  return 1;
+};
+
 
 async function applyCritDamage(dmg, critdmg, position) {
     let dialogResult = await new Promise(async (resolve, reject) => {
